@@ -6,58 +6,66 @@ BACKGROUND_COLOR = "#B1DDC6"
 TITLE_FONT = ('Ariel', 40, 'italic')
 WORD_FONT = ('Ariel', 60, 'bold')
 
+current_card = {}
 #<---Fetching Data---->
 
 try:
-    data_file = pd.read_csv('data/french_words.csv')
-    data = data_file.to_dict(orient='records')
+    data_file = pd.read_csv('data/words_to_learn.csv')
 except FileNotFoundError:
-    print('File is not found')
-
+    original_file = pd.read_csv('data/french_words.csv')
+    data = original_file.to_dict(orient='records')
+else:
+    data = data_file.to_dict(orient='records')
 #<----Updating Function---->
-def is_cross():
-    random_index = random.randint(0,100)
-    word = data[random_index]
-    canvas.itemconfig(french_word, text=word['French'])
-    canvas.itemconfig(english_word, text=word['English'])
+def next_card():
+    global current_card, flip_timer
+    window.after_cancel(flip_timer)
+    current_card = random.choice(data)
+    canvas.itemconfig(card_title, text='French', fill='black')
+    canvas.itemconfig(card_word, text=current_card['French'], fill='black')
+    canvas.itemconfig(card_background, image=card_front_image)
+    flip_timer = window.after(3000, func=flip_card)
 
+def flip_card():
+    canvas.itemconfig(card_title, text='English', fill='white')
+    canvas.itemconfig(card_word, text=current_card['English'], fill='white')
+    canvas.itemconfig(card_background, image=card_back_image)
 
-def flip():
-    new_image = PhotoImage(file='images/card_back.png')
-    old_image = PhotoImage(file='images/card_front.png')
-    canvas.itemconfig(image=new_image)
-    time.sleep(3000)
-    canvas.itemconfig(image=old_image)
-    is_cross()
+def is_known():
+    data.remove(current_card)
+    print(len(data))
 
-
+    to_learn = pd.DataFrame(data)
+    to_learn.to_csv("data/words_to_learn.csv", index=False)
+    next_card()
 
 #<----UI SETUP---->
 window = Tk()
 window.title("Falshy")
 window.config(padx=50, pady=50, bg=BACKGROUND_COLOR)
 
-random_index = random.randint(0,100)
-word = data[random_index]
+flip_timer = window.after(3000, func=flip_card)
+
 canvas = Canvas(width=800, height=526, bg=BACKGROUND_COLOR, highlightthickness=0)
 card_front_image = PhotoImage(file='images/card_front.png')
-canvas.create_image(400, 263, image=card_front_image)
-french_word = canvas.create_text(400, 150, text=word['French'], font=TITLE_FONT)
-english_word = canvas.create_text(400, 263, text=word['English'], font=WORD_FONT)
+card_back_image = PhotoImage(file='images/card_back.png')
+card_background = canvas.create_image(400, 263, image=card_front_image)
+card_title = canvas.create_text(400, 150, text='title', font=TITLE_FONT)
+card_word = canvas.create_text(400, 263, text='word', font=WORD_FONT)
 canvas.grid(row=0, column=0, columnspan=2)
 
 #<-----Button---->
 cross_image = PhotoImage(file='images/wrong.png')
 wrong = Button(image=cross_image, bg=BACKGROUND_COLOR, highlightthickness=0
-               , command=flip)
+               , command=next_card)
 wrong.grid(row=1, column=0)
 
 check_image = PhotoImage(file='images/right.png')
 right = Button(image=check_image, bg=BACKGROUND_COLOR, highlightthickness=0
-               , command=flip)
+               , command=is_known)
 right.grid(row=1, column=1)
 
 
-
+next_card()
 
 window.mainloop()
